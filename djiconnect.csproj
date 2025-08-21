@@ -10,7 +10,8 @@
   <ItemGroup>
     <!--<PackageReference Include="InTheHand.Bluetooth.Permissions" Version="8.0.2" />
     <PackageReference Include="InTheHand.BluetoothLE" Version="4.0.37" />-->
-    <PackageReference Include="Linux.Bluetooth" Version="5.67.1" />
+    <PackageReference Include="Linux.Bluetooth" Version="6.0.0-pre2" />
+    <!--<PackageReference Include="Tmds.DBus" Version="0.21.2" />-->
     <!--<PackageReference Include="InTheHand.Net.Bluetooth" Version="4.1.44" />-->
   </ItemGroup>
 
