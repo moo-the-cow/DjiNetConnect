@@ -14,10 +14,10 @@ public static class DeviceUtils
             manufacturerData = deviceProperties.ManufacturerData;
             foreach (var item in manufacturerData)
             {
-                _logger.Information($"{item.Key}");
+                _logger.Debug($"{item.Key}");
                 byte[] realValue = (byte[])item.Value;
                 string hexString = BitConverter.ToString(realValue);
-                _logger.Information(hexString);
+                _logger.Debug(hexString);
             }
         }
         return $"{deviceProperties.Alias} (Address: {deviceProperties.Address}, RSSI: {deviceProperties.RSSI})";

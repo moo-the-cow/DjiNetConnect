@@ -105,6 +105,28 @@ public static class DjiCommandUtils
         return complete.ToArray();
     }
 
+    // Stop broadcast command
+    public static byte[] CreateStopBroadcastCommand()
+    {
+        // Base command structure matching your start command format
+        byte[] stop = new byte[] { 0x55, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00 };
+        
+        // Set the length field (total bytes + 2 for CRC16)
+        stop[1] = (byte)(stop.Length + 2); // This will be 0x0A (10 bytes total)
+        
+        // Calculate CRC8 for first 3 bytes
+        byte[] firstThreeBytes = new byte[] { stop[0], stop[1], stop[2] };
+        stop[3] = DjiCrcUtils.Crc8(firstThreeBytes);
+        
+        // Append CRC16
+        byte[] crc16 = DjiCrcUtils.Crc16(stop);
+        List<byte> complete = new List<byte>();
+        complete.AddRange(stop);
+        complete.AddRange(crc16);
+        
+        return complete.ToArray();
+    }
+
     // Authentication command
     public static byte[] CreateAuthCommand(string pin, byte[] count)
     {

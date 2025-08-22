@@ -7,7 +7,7 @@ public static class DjiCrcUtils
     // CRC8 implementation that matches Node.js crc-full library
     public static byte[] Crc16(byte[] data)
     {
-        _logger.Information($"Data being hashed ({data.Length} bytes): {BitConverter.ToString(data)}");
+        _logger.Debug($"Data being hashed ({data.Length} bytes): {BitConverter.ToString(data)}");
 
         const ushort polynomial = 0x1021;
         ushort crc = 0x496C; // Initial value
@@ -35,7 +35,7 @@ public static class DjiCrcUtils
         crc = ReflectUshort(crc);
 
         byte[] result = new byte[] { (byte)(crc & 0xFF), (byte)((crc >> 8) & 0xFF) };
-        _logger.Information($"CRC16 result: {BitConverter.ToString(result)}");
+        _logger.Debug($"CRC16 result: {BitConverter.ToString(result)}");
 
         return result;
     }

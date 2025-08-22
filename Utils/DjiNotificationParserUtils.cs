@@ -1,3 +1,4 @@
+using System.Text;
 using Serilog;
 
 namespace djiconnect.Utils;
@@ -7,8 +8,9 @@ public static class DjiNotificationParserUtils
     public static DjiNotification ParseNotify(byte[] data)
     {
         if (data.Length < 6)
+        {
             return new DjiNotification { RawData = data, IsValid = false };
-
+        }
         try
         {
             // Check if this is an authentication response
@@ -51,21 +53,34 @@ public static class DjiNotificationParserUtils
 
 public class DjiNotification
 {
-    public byte[] RawData { get; set; }
+    public byte[] RawData { get; set; } = [];
     public bool IsValid { get; set; }
-    public bool? AuthSuccess { get; set; }
-    public byte? StreamingStatus { get; set; }
+    public bool AuthSuccess { get; set; }
+    public byte StreamingStatus { get; set; }
     
     public override string ToString()
     {
-        if (!IsValid) return "Invalid notification";
-        
+        /*
+        if (!IsValid)
+        {
+            return "Invalid notification";
+        }
         if (AuthSuccess.HasValue)
+        {
             return AuthSuccess.Value ? "Authentication successful" : "Authentication failed";
-        
+        }
+
         if (StreamingStatus.HasValue)
+        {
             return $"Streaming status: {StreamingStatus.Value}";
-        
-        return $"Notification: {BitConverter.ToString(RawData)}";
+        }
+        */
+        /*
+        if (RawData.Length > 0)
+        {
+            return $"Notification: {Encoding.UTF8.GetString(RawData)}";
+        }
+        */
+        return $"Notification (raw): {BitConverter.ToString(RawData)}";
     }
 }
