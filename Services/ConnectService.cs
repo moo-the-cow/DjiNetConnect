@@ -247,7 +247,7 @@ public class ConnectService : IHostedService, IAsyncDisposable
       byte[] initCommand = DjiCommandUtils.CreateInitiateCommand();
       DjiUtils.DebugCommand(initCommand, "Send Init");
       await writeCharacteristic.WriteValueAsync(initCommand, writeOptions);
-      await Task.Delay(TimeSpan.FromSeconds(5));
+      await Task.Delay(TimeSpan.FromSeconds(1));
       //byte[] notificationMessageRaw = await notifyCharacteristic.ReadValueAsync(notifyOptions);
       //DjiNotification notificationResult = DjiNotificationParserUtils.ParseNotify(notificationMessageRaw);
       //Console.WriteLine(notificationResult.ToString());
@@ -257,7 +257,7 @@ public class ConnectService : IHostedService, IAsyncDisposable
       DjiUtils.DebugCommand(authCommand, "Send authentication");
       await writeCharacteristic.WriteValueAsync(authCommand, writeOptions);
       count = DjiUtils.GetNextCount(count); // Increment count after auth
-      await Task.Delay(TimeSpan.FromSeconds(5));
+      await Task.Delay(TimeSpan.FromSeconds(3));
 
       //DjiPacketStructure.ResetSequence();
 
@@ -287,7 +287,6 @@ public class ConnectService : IHostedService, IAsyncDisposable
       byte[] startCommand = DjiCommandUtils.CreateStartBroadcastCommand();
       DjiUtils.DebugCommand(startCommand, "Start Broadcast");
       await writeCharacteristic.WriteValueAsync(startCommand, writeOptions);
-      await Task.Delay(TimeSpan.FromSeconds(5));
 
       _logger.Debug("Broadcast started successfully!");
 
@@ -299,12 +298,13 @@ public class ConnectService : IHostedService, IAsyncDisposable
       //count = DjiUtils.GetNextCount(count); // Increment count after auth
       //byte[] stopCommand = DjiCommandUtils.CreateStopStreamingCommand3(count);
       //byte[] stopCommand = DjiCommandUtils.CreateStopBroadcastCommandNew(count);
-      /*byte[] stopCommand = DjiCommandUtils.CreateStopBroadcastCommand();
+      byte[] stopCommand = DjiCommandUtils.CreateStopBroadcastCommand();
       DjiUtils.DebugCommand(stopCommand, "Stop Broadcast");
       await writeCharacteristic.WriteValueAsync(stopCommand, writeOptions);
       await Task.Delay(TimeSpan.FromSeconds(1));
-      */    
+      
       // Create stop command
+      /*
       var stopCommand = new byte[] { 0x55, 0xAA, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x53 };
 
       // Write to characteristic
@@ -314,6 +314,7 @@ public class ConnectService : IHostedService, IAsyncDisposable
         { "stopStreamingType", 0x8E0240 }  //stop stream type
       };
       await writeCharacteristic.WriteValueAsync(stopCommand, writeOptions);
+      */
     }
   }
 

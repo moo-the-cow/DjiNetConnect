@@ -105,26 +105,47 @@ public static class DjiCommandUtils
         return complete.ToArray();
     }
 
+    public static byte[] TestCrcImplementation()
+    {
+        // Test data (first 3 bytes of stop command)
+        byte[] testData = new byte[] { 0x55, 0x0A, 0x04 };
+
+        byte crc8 = DjiCrcUtils.Crc8(testData);
+        Console.WriteLine($"CRC8 of [55 0A 04]: 0x{crc8:X2}");
+
+        // Test CRC16 on the full stop command (before CRC16 is added)
+        byte[] stopForCrc16 = new byte[] { 0x55, 0x0A, 0x04, crc8, 0x00, 0x00, 0x00, 0x00 };
+        byte[] crc16 = DjiCrcUtils.Crc16(stopForCrc16);
+        Console.WriteLine($"CRC16 of stop command: {BitConverter.ToString(crc16)}");
+        return crc16;
+    }
+
     // Stop broadcast command
     public static byte[] CreateStopBroadcastCommand()
     {
-        // Base command structure matching your start command format
-        byte[] stop = new byte[] { 0x55, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00 };
-        
-        // Set the length field (total bytes + 2 for CRC16)
-        stop[1] = (byte)(stop.Length + 2); // This will be 0x0A (10 bytes total)
-        
+        // Create the base packet (8 bytes)
+        byte[] packet = new byte[8];
+        packet[0] = 0x55; // Magic
+        packet[1] = 0x0A; // Length: 8 bytes + 2 CRC16 = 10 total (0x0A)
+        packet[2] = 0x04; // Command: Stop (0x04)
+        packet[4] = 0x00; // Parameter 1
+        packet[5] = 0x00; // Parameter 2  
+        packet[6] = 0x00; // Parameter 3
+        packet[7] = 0x00; // Parameter 4
+
         // Calculate CRC8 for first 3 bytes
-        byte[] firstThreeBytes = new byte[] { stop[0], stop[1], stop[2] };
-        stop[3] = DjiCrcUtils.Crc8(firstThreeBytes);
-        
-        // Append CRC16
-        byte[] crc16 = DjiCrcUtils.Crc16(stop);
-        List<byte> complete = new List<byte>();
-        complete.AddRange(stop);
-        complete.AddRange(crc16);
-        
-        return complete.ToArray();
+        byte[] header = new byte[] { packet[0], packet[1], packet[2] };
+        packet[3] = DjiCrcUtils.Crc8(header);
+
+        // Calculate CRC16 for entire 8-byte packet
+        byte[] crc16 = DjiCrcUtils.Crc16(packet);
+
+        // Combine packet + CRC16
+        byte[] result = new byte[packet.Length + 2];
+        Array.Copy(packet, result, packet.Length);
+        Array.Copy(crc16, 0, result, packet.Length, 2);
+
+        return result;
     }
 
     // Authentication command
