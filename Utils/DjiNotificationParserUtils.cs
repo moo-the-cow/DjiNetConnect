@@ -1,10 +1,11 @@
-public static class DjiNotificationParser
+namespace djiconnect.Utils;
+public static class DjiNotificationParserUtils
 {
     public static DjiNotification ParseNotify(byte[] data)
     {
-        if (data.Length < 6) 
+        if (data.Length < 6)
             return new DjiNotification { RawData = data, IsValid = false };
-        
+
         try
         {
             // Check if this is an authentication response
@@ -14,26 +15,27 @@ public static class DjiNotificationParser
                 {
                     if (data[11] == 0x00 && data[12] == 0x01)
                         return new DjiNotification { RawData = data, IsValid = true, AuthSuccess = true };
-                    
+
                     if (data[11] == 0x00 && data[12] == 0x02)
                         return new DjiNotification { RawData = data, IsValid = true, AuthSuccess = false };
                 }
             }
-            
+
             // Check for streaming status responses
             if (data.Length >= 10 && data[4] == 0x07 && data[5] == 0x02)
             {
                 if (data[9] == 0x07 && data[10] == 0x43)
                 {
                     // Streaming status response
-                    return new DjiNotification { 
-                        RawData = data, 
-                        IsValid = true, 
-                        StreamingStatus = data.Length > 11 ? data[11] : (byte)0 
+                    return new DjiNotification
+                    {
+                        RawData = data,
+                        IsValid = true,
+                        StreamingStatus = data.Length > 11 ? data[11] : (byte)0
                     };
                 }
             }
-            
+
             // Generic valid response
             return new DjiNotification { RawData = data, IsValid = true };
         }

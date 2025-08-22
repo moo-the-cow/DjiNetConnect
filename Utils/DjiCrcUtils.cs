@@ -1,19 +1,20 @@
-public static class DjiCrc
+namespace djiconnect.Utils;
+public static class DjiCrcUtils
 {
     // CRC8 implementation that matches Node.js crc-full library
     public static byte[] Crc16(byte[] data)
     {
         Console.WriteLine($"Data being hashed ({data.Length} bytes): {BitConverter.ToString(data)}");
-        
+
         const ushort polynomial = 0x1021;
         ushort crc = 0x496C; // Initial value
-        
+
         foreach (byte b in data)
         {
             // Reflect input (bit reversal)
             byte reflectedByte = ReflectByte(b);
             crc ^= (ushort)(reflectedByte << 8);
-            
+
             for (int i = 0; i < 8; i++)
             {
                 if ((crc & 0x8000) != 0)
@@ -26,13 +27,13 @@ public static class DjiCrc
                 }
             }
         }
-        
+
         // Reflect output (bit reversal)
         crc = ReflectUshort(crc);
-        
+
         byte[] result = new byte[] { (byte)(crc & 0xFF), (byte)((crc >> 8) & 0xFF) };
         Console.WriteLine($"CRC16 result: {BitConverter.ToString(result)}");
-        
+
         return result;
     }
 
@@ -40,11 +41,11 @@ public static class DjiCrc
     public static byte[] Crc16Simple(byte[] data)
     {
         ushort crc = 0xFFFF;
-        
+
         foreach (byte b in data)
         {
             crc ^= (ushort)(b << 8);
-            
+
             for (int i = 0; i < 8; i++)
             {
                 if ((crc & 0x8000) != 0)
@@ -53,7 +54,7 @@ public static class DjiCrc
                     crc = (ushort)(crc << 1);
             }
         }
-        
+
         return new byte[] { (byte)(crc >> 8), (byte)(crc & 0xFF) };
     }
 
@@ -84,18 +85,18 @@ public static class DjiCrc
         }
         return result;
     }
-    
+
     public static byte Crc8(byte[] data)
     {
         const byte polynomial = 0x31;
         byte crc = 0xEE; // Initial value
-        
+
         foreach (byte b in data)
         {
             // Reflect input
             byte reflectedByte = ReflectByte(b);
             crc ^= reflectedByte;
-            
+
             for (int i = 0; i < 8; i++)
             {
                 if ((crc & 0x80) != 0)
@@ -108,11 +109,11 @@ public static class DjiCrc
                 }
             }
         }
-        
+
         // Reflect output
         crc = ReflectByte(crc);
         // Final XOR value (0x00 in this case, so no change)
-        
+
         return crc;
     }
 }

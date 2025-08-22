@@ -1,3 +1,4 @@
+namespace djiconnect.Utils;
 public static class DjiUtils
 {
     public static void DebugCommand(byte[] command, string name)
@@ -12,7 +13,7 @@ public static class DjiUtils
             byte[] dataWithoutCrc = new byte[command.Length - 2];
             Array.Copy(command, 0, dataWithoutCrc, 0, command.Length - 2);
 
-            byte[] calculatedCrc = DjiCrc.Crc16(dataWithoutCrc);
+            byte[] calculatedCrc = DjiCrcUtils.Crc16(dataWithoutCrc);
             byte[] actualCrc = new byte[] { command[command.Length - 2], command[command.Length - 1] };
 
             bool crcValid = calculatedCrc[0] == actualCrc[0] && calculatedCrc[1] == actualCrc[1];
@@ -26,15 +27,15 @@ public static class DjiUtils
         }
         Console.WriteLine();
     }
-    
+
     public static byte[] GetNextCount(byte[] currentCount)
     {
         if (currentCount == null || currentCount.Length != 2)
             return new byte[] { 0x00, 0x00 };
-        
+
         byte[] next = new byte[2];
         Array.Copy(currentCount, next, 2);
-        
+
         // Exact match to Node.js logic
         if (next[0] == 0xFF)
         {
@@ -45,7 +46,7 @@ public static class DjiUtils
         {
             next[0]++;
         }
-        
+
         return next;
     }
 }

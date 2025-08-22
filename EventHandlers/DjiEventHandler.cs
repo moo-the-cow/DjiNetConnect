@@ -1,6 +1,7 @@
+using djiconnect.Utils;
 using Tmds.DBus;
-
-public static class EventHandlers
+namespace djiconnect.EventHandlers;
+public static class DjiEventHandler
 {
     public static void OnPropertiesChanged(PropertyChanges changes)
     {
@@ -16,7 +17,7 @@ public static class EventHandlers
                     // Try to parse but show everything even if parsing fails
                     try
                     {
-                        var notification = DjiNotificationParser.ParseNotify(data);
+                        var notification = DjiNotificationParserUtils.ParseNotify(data);
                         if (notification.IsValid)
                         {
                             if (notification.AuthSuccess.HasValue)
