@@ -1,10 +1,5 @@
 ﻿using Linux.Bluetooth;
 using Linux.Bluetooth.Extensions;
-using System;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
 
 class Program
 {
@@ -214,6 +209,15 @@ class Program
           Console.WriteLine($"Should be: 11-DF");
           Console.WriteLine($"Match: {crc[0] == 0x11 && crc[1] == 0xDF}");
           */
+          {
+              // Test with a simple known value
+              byte[] testData = new byte[] { 0x01, 0x02, 0x03, 0x04 };
+              byte[] crc = DjiCrc.Crc16(testData);
+              Console.WriteLine($"CRC16 test result: {BitConverter.ToString(crc)}");
+              
+              // Expected value for CRC-16/CCITT-FALSE with this input is 0x0C13
+              // If you don't get this, your algorithm is wrong
+          }
 
           // At the start of your communication sequence
           //DjiPacketStructure.ResetSequence();
@@ -223,14 +227,14 @@ class Program
           byte[] initCommand = DjiCommands.CreateInitiateCommand();
           DjiUtils.DebugCommand(initCommand, "Send Init");
           await writeCharacteristic.WriteValueAsync(initCommand, writeOptions);
-          await Task.Delay(5000);
+          await Task.Delay(TimeSpan.FromSeconds(1));
 
           Console.WriteLine("Sending authentication...");
           byte[] authCommand = DjiCommands.CreateAuthCommand(pin, count);
           DjiUtils.DebugCommand(authCommand, "Send authentication");
           await writeCharacteristic.WriteValueAsync(authCommand, writeOptions);
           count = DjiUtils.GetNextCount(count); // Increment count after auth
-          await Task.Delay(5000);
+          await Task.Delay(TimeSpan.FromSeconds(3));
 
           //DjiPacketStructure.ResetSequence();
 
@@ -238,7 +242,7 @@ class Program
           byte[] wifiCommand = DjiCommands.CreateWifiConfigCommand(wifiSsid, wifiPassword);
           DjiUtils.DebugCommand(wifiCommand, "Send Wifi Config");
           await writeCharacteristic.WriteValueAsync(wifiCommand, writeOptions);
-          await Task.Delay(5000);
+          await Task.Delay(TimeSpan.FromSeconds(3));
 
           // Test with known data from Node.js
           /*
@@ -269,10 +273,9 @@ class Program
               auto: true,
               eisCode: 0x01         // EIS enabled
           );
-          DjiUtils.DebugCommand(rtmpCommand, "RTMP config");
           await writeCharacteristic.WriteValueAsync(rtmpCommand, writeOptions);
           count = DjiUtils.GetNextCount(count); // Increment count after auth
-          await Task.Delay(5000);
+          await Task.Delay(TimeSpan.FromSeconds(1));
 
           //DjiPacketStructure.ResetSequence();
 
@@ -280,7 +283,7 @@ class Program
           byte[] startCommand = DjiCommands.CreateStartBroadcastCommand();
           DjiUtils.DebugCommand(startCommand, "Start Broadcast");
           await writeCharacteristic.WriteValueAsync(startCommand, writeOptions);
-          await Task.Delay(5000);
+          await Task.Delay(TimeSpan.FromSeconds(1));
 
           Console.WriteLine("Broadcast started successfully!");
 
@@ -289,66 +292,71 @@ class Program
           Console.ReadKey();
 
           Console.WriteLine("Stopping broadcast...");
-          byte[] stopCommand = DjiCommands.CreateStopStreamingCommand(count);
+          count = DjiUtils.GetNextCount(count); // Increment count after auth
+          //byte[] stopCommand = DjiCommands.CreateStopStreamingCommand3(count);
+          byte[] stopCommand = DjiCommands.CreateStopBroadcastCommandNew(count);
+          DjiUtils.DebugCommand(stopCommand, "Stop Broadcast");
           await writeCharacteristic.WriteValueAsync(stopCommand, writeOptions);
-          await Task.Delay(1000);
+          await Task.Delay(TimeSpan.FromSeconds(1));
         }
       }
     }
   }
 
+  /*
   private static async void OnCharacteristicValueChanged(IGattCharacteristic1 characteristic, GattCharacteristicValueEventArgs args)
   {
-      try
+    try
+    {
+      byte[] data = args.Value.ToArray();
+      var notification = DjiNotificationParser.ParseNotify(data);
+
+      Console.WriteLine($"Received: {notification}");
+
+      // Handle specific responses
+      if (notification.AuthSuccess.HasValue)
       {
-          byte[] data = args.Value.ToArray();
-          var notification = DjiNotificationParser.ParseNotify(data);
-          
-          Console.WriteLine($"Received: {notification}");
-          
-          // Handle specific responses
-          if (notification.AuthSuccess.HasValue)
-          {
-              if (notification.AuthSuccess.Value)
-              {
-                  Console.WriteLine("✓ Device authenticated successfully!");
-              }
-              else
-              {
-                  Console.WriteLine("✗ Authentication failed! Check your PIN.");
-              }
-          }
-          
-          if (notification.StreamingStatus.HasValue)
-          {
-              switch (notification.StreamingStatus.Value)
-              {
-                  case 0x00:
-                      Console.WriteLine("✓ Streaming stopped");
-                      break;
-                  case 0x01:
-                      Console.WriteLine("✓ Streaming started successfully!");
-                      break;
-                  case 0x02:
-                      Console.WriteLine("⚠ Streaming in progress...");
-                      break;
-                  case 0x03:
-                      Console.WriteLine("⚠ Streaming preparing...");
-                      break;
-                  case 0x04:
-                      Console.WriteLine("✗ Streaming failed - check RTMP URL");
-                      break;
-                  default:
-                      Console.WriteLine($"Streaming status: 0x{notification.StreamingStatus.Value:X2}");
-                      break;
-              }
-          }
+        if (notification.AuthSuccess.Value)
+        {
+          Console.WriteLine("✓ Device authenticated successfully!");
+        }
+        else
+        {
+          Console.WriteLine("✗ Authentication failed! Check your PIN.");
+        }
       }
-      catch (Exception ex)
+
+      if (notification.StreamingStatus.HasValue)
       {
-          Console.WriteLine($"Error handling notification: {ex.Message}");
+        switch (notification.StreamingStatus.Value)
+        {
+          case 0x00:
+            Console.WriteLine("✓ Streaming stopped");
+            break;
+          case 0x01:
+            Console.WriteLine("✓ Streaming started successfully!");
+            break;
+          case 0x02:
+            Console.WriteLine("⚠ Streaming in progress...");
+            break;
+          case 0x03:
+            Console.WriteLine("⚠ Streaming preparing...");
+            break;
+          case 0x04:
+            Console.WriteLine("✗ Streaming failed - check RTMP URL");
+            break;
+          default:
+            Console.WriteLine($"Streaming status: 0x{notification.StreamingStatus.Value:X2}");
+            break;
+        }
       }
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"Error handling notification: {ex.Message}");
+    }
   }
+  */
 
   private static async Task<string> GetDeviceDescriptionAsync(IDevice1 device)
   {

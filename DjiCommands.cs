@@ -32,46 +32,47 @@ public static class DjiCommands
     public static byte[] CreateRtmpConfigCommand(string url, byte[] count, int bitrateKbps = 4000, int resolutionCode = 0x0a, 
                                            int fpsCode = 0x03, bool auto = true, int eisCode = 1)
     {
-        // Base data template
-        byte[] baseData = new byte[] { 0x27, 0x00, 0x0a, 0x70, 0x17, 0x02, 0x00, 0x03, 0x00, 0x00, 0x00, 0x1c, 0x00 };
-        
         byte[] urlBytes = Encoding.UTF8.GetBytes(url);
-        List<byte> data = new List<byte>(baseData);
-        data.AddRange(urlBytes);
-        
-        // Set URL length - USE BITWISE AND like Node.js
-        data[11] = (byte)(urlBytes.Length & 0xff);
-        
-        // Set bitrate (big endian) - 4000 = 0x0FA0
-        data[4] = (byte)((bitrateKbps >> 8) & 0xFF);  // 0x0F
-        data[5] = (byte)(bitrateKbps & 0xFF);         // 0xA0
-        
-        // Set other parameters
-        data[7] = (byte)fpsCode;
-        data[2] = (byte)resolutionCode;
-        data[6] = (byte)(auto ? 0x01 : 0x00);
+        int urlLength = urlBytes.Length;
 
-        // Build main RTMP config payload - USE FIXED ID like Node.js
+        // Reconstruct the base data template dynamically
+        List<byte> data = new List<byte>();
+        data.Add(0x27); // Constant
+        data.Add(0x00); // Constant
+        data.Add((byte)resolutionCode); // Resolution (0x0a for 1080p)
+        data.Add(0x70); // Constant
+        // Bitrate (big endian) - 4000 = 0x0FA0
+        data.Add((byte)((bitrateKbps >> 8) & 0xFF));  // 0x0F
+        data.Add((byte)(bitrateKbps & 0xFF));         // 0xA0
+        data.Add((byte)(auto ? 0x01 : 0x00)); // Auto setting
+        data.Add((byte)fpsCode); // FPS code
+        data.Add(0x00); // Constant
+        data.Add(0x00); // Constant
+        data.Add(0x00); // Constant
+        data.Add((byte)urlLength); // URL length - CRITICAL FIX
+        data.Add(0x00); // Constant
+
+        data.AddRange(urlBytes); // Append the URL bytes
+            
+        // Build main RTMP config payload
         byte[] rtmpPayload = DjiPacketStructure.BuildDjiFrame(
             command: new byte[] { 0x02, 0x08 },
             id: new byte[] { 0xbe, 0xea }, // FIXED ID from Node.js
             type: new byte[] { 0x40, 0x08, 0x78, 0x00 },
             data: data.ToArray()
         );
+        DjiUtils.DebugCommand(rtmpPayload, "RTMP payload config");
         
         // Build EIS payload - USE THE count PARAMETER
         byte[] eisData = new byte[] { 0x01, 0x01, 0x08, 0x00, 0x01, (byte)eisCode, 0xf0, 0x72 };
         
-        // Use the passed count parameter instead of sequence generator
-        byte[] eisId = count;
-        Console.WriteLine($"EIS Count ID: {BitConverter.ToString(eisId)}");
-        
         byte[] eisPayload = DjiPacketStructure.BuildDjiFrame(
             command: new byte[] { 0x02, 0x01 },
-            id: eisId, // Use the count parameter
+            id: count, // Use the count parameter
             type: new byte[] { 0x40, 0x02, 0x8e },
             data: eisData
         );
+        DjiUtils.DebugCommand(eisPayload, "RTMP EIS payload config");
         
         // Combine both payloads
         List<byte> combined = new List<byte>();
@@ -123,14 +124,84 @@ public static class DjiCommands
     }
 
     // Stop streaming command
+    public static byte[] CreateStopBroadcastCommandNew(byte [] currentSequenceId)
+    {
+        
+        // Build the core packet - same as start but last data byte is 0x00
+        byte[] stopData = new byte[] { 0x01, 0x01, 0x1a, 0x00, 0x01, 0x00 }; // Last byte 0x00 for STOP
+        
+        List<byte> packet = new List<byte>();
+        packet.Add(0x55);
+        packet.Add(0x00); // Length placeholder
+        packet.Add(0x04);
+        packet.Add(0x00); // CRC8 placeholder
+        packet.AddRange(new byte[] { 0x02, 0x08 }); // Command
+        packet.AddRange(currentSequenceId); // Sequence ID
+        packet.AddRange(new byte[] { 0x40, 0x02, 0x8e }); // Your specific type
+        packet.AddRange(stopData); // Stop data payload
+
+        // Calculate and set length
+        int lengthValue = (packet.Count - 2) + 2; // -2 (0x55+placeholder), +2 for CRC16
+        packet[1] = (byte)lengthValue;
+
+        // Calculate and set CRC8
+        byte[] headerForCrc8 = { packet[0], packet[1], packet[2] };
+        packet[3] = DjiCrc.Crc8(headerForCrc8);
+
+        // Calculate CRC16
+        byte[] packetWithoutCrc16 = packet.ToArray();
+        byte[] crc16 = DjiCrc.Crc16(packetWithoutCrc16);
+
+        // Final packet
+        List<byte> completePacket = new List<byte>();
+        completePacket.AddRange(packetWithoutCrc16);
+        completePacket.AddRange(crc16);
+
+        return completePacket.ToArray();
+    }
     public static byte[] CreateStopStreamingCommand(byte[] count)
     {
         return DjiPacketStructure.BuildDjiFrame(
             command: new byte[] { 0x02, 0x07 },
-            //id: count,
-            id: new byte[] { 0xb2, 0xea },
+            id: count,
             type: new byte[] { 0x40, 0x07, 0x43 },
+            data: new byte[] { 0x00 }  // 0x00 = stop, 0x01 = start
+        );
+    }
+    public static byte[] CreateStopStreamingCommand2(byte[] count)
+    {
+        // Try different command types that might control streaming
+        return DjiPacketStructure.BuildDjiFrame(
+            command: new byte[] { 0x02, 0x08 }, // Different command
+            id: count,
+            type: new byte[] { 0x40, 0x08, 0x43 }, // Different type
             data: new byte[] { 0x00 }
         );
+    }
+    public static byte[] CreateStopStreamingCommand3(byte[] count)
+    {
+        // This is the most common stop command structure found in DJI protocols
+        return DjiPacketStructure.BuildDjiFrame(
+            command: new byte[] { 0x02, 0x07 },
+            id: count,
+            type: new byte[] { 0x40, 0x07, 0x43 },
+            data: new byte[] { 0x00, 0x00, 0x00, 0x00 }  // Sometimes needs 4 bytes
+        );
+    }
+    public static byte[] CreateStopStreamingCommand()
+    {
+        byte[] start = new byte[] { 0x55, 0x13, 0x04, 0x03, 0x02, 0x08, 0x6a, 0xc0, 0x40, 0x02, 0x8e, 0x01, 0x01, 0x1a, 0x00, 0x01, 0x00 }; // Last byte 0x00 instead of 0x01
+
+        start[1] = (byte)(start.Length + 2);
+
+        byte[] firstThreeBytes = new byte[] { start[0], start[1], start[2] };
+        start[3] = DjiCrc.Crc8(firstThreeBytes);
+
+        byte[] crc16 = DjiCrc.Crc16(start);
+        List<byte> complete = new List<byte>();
+        complete.AddRange(start);
+        complete.AddRange(crc16);
+
+        return complete.ToArray();
     }
 }

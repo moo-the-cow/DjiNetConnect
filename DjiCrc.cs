@@ -3,6 +3,8 @@ public static class DjiCrc
     // CRC8 implementation that matches Node.js crc-full library
     public static byte[] Crc16(byte[] data)
     {
+        Console.WriteLine($"Data being hashed ({data.Length} bytes): {BitConverter.ToString(data)}");
+        
         const ushort polynomial = 0x1021;
         ushort crc = 0x496C; // Initial value
         
@@ -27,9 +29,32 @@ public static class DjiCrc
         
         // Reflect output (bit reversal)
         crc = ReflectUshort(crc);
-        // Final XOR value (0x0000 in this case, so no change)
         
-        return new byte[] { (byte)(crc & 0xFF), (byte)((crc >> 8) & 0xFF) };
+        byte[] result = new byte[] { (byte)(crc & 0xFF), (byte)((crc >> 8) & 0xFF) };
+        Console.WriteLine($"CRC16 result: {BitConverter.ToString(result)}");
+        
+        return result;
+    }
+
+    // Alternative CRC16 implementation (CCITT-FALSE)
+    public static byte[] Crc16Simple(byte[] data)
+    {
+        ushort crc = 0xFFFF;
+        
+        foreach (byte b in data)
+        {
+            crc ^= (ushort)(b << 8);
+            
+            for (int i = 0; i < 8; i++)
+            {
+                if ((crc & 0x8000) != 0)
+                    crc = (ushort)((crc << 1) ^ 0x1021);
+                else
+                    crc = (ushort)(crc << 1);
+            }
+        }
+        
+        return new byte[] { (byte)(crc >> 8), (byte)(crc & 0xFF) };
     }
 
     // Bit reversal for a byte
