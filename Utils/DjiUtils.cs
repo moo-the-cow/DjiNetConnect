@@ -1,11 +1,14 @@
+using Serilog;
+
 namespace djiconnect.Utils;
 public static class DjiUtils
 {
+    private static readonly Serilog.ILogger _logger = Log.Logger;
     public static void DebugCommand(byte[] command, string name)
     {
-        Console.WriteLine($"=== {name} ===");
-        Console.WriteLine($"Length: {command.Length} bytes");
-        Console.WriteLine($"Hex: {BitConverter.ToString(command)}");
+        _logger.Information($"=== {name} ===");
+        _logger.Information($"Length: {command.Length} bytes");
+        _logger.Information($"Hex: {BitConverter.ToString(command)}");
 
         // Check CRC16 of the entire packet (if it's a complete DJI frame)
         if (command.Length >= 4)
@@ -17,15 +20,14 @@ public static class DjiUtils
             byte[] actualCrc = new byte[] { command[command.Length - 2], command[command.Length - 1] };
 
             bool crcValid = calculatedCrc[0] == actualCrc[0] && calculatedCrc[1] == actualCrc[1];
-            Console.WriteLine($"CRC16 Valid: {crcValid}");
+            _logger.Information($"CRC16 Valid: {crcValid}");
 
             if (!crcValid)
             {
-                Console.WriteLine($"Expected: {BitConverter.ToString(calculatedCrc)}");
-                Console.WriteLine($"Actual: {BitConverter.ToString(actualCrc)}");
+                _logger.Information($"Expected: {BitConverter.ToString(calculatedCrc)}");
+                _logger.Information($"Actual: {BitConverter.ToString(actualCrc)}");
             }
         }
-        Console.WriteLine();
     }
 
     public static byte[] GetNextCount(byte[] currentCount)

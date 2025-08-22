@@ -1,8 +1,10 @@
 using System.Text;
+using Serilog;
 
 namespace djiconnect.Utils;
 public static class DjiCommandUtils
 {
+    private static readonly Serilog.ILogger _logger = Log.Logger;
     // Initialization command - CRUCIAL!
     public static byte[] CreateInitiateCommand()
     {

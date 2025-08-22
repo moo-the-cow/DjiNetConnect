@@ -1,6 +1,9 @@
+using Serilog;
+
 namespace djiconnect.Utils;
 public static class DjiNotificationParserUtils
 {
+    private static readonly Serilog.ILogger _logger = Log.Logger;
     public static DjiNotification ParseNotify(byte[] data)
     {
         if (data.Length < 6)

@@ -1,6 +1,9 @@
+using Serilog;
+
 namespace djiconnect.Utils;
 public static class DjiPacketStructureUtils
 {
+    private static readonly Serilog.ILogger _logger = Log.Logger;
     //private static byte[] _currentSequence = new byte[] { 0x00, 0x00 };
     public static byte[] BuildDjiFrame(byte[] command, byte[] id, byte[] type, byte[] data)
     {
