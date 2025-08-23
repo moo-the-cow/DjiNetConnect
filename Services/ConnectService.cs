@@ -223,6 +223,7 @@ public class ConnectService : IHostedService, IAsyncDisposable
         await djiDevice.DisconnectAsync();
         return;
       }
+      #region Notification
       await notifyCharacteristic.StartNotifyAsync();
       await notifyCharacteristic.WatchPropertiesAsync((changes) =>
       {
@@ -230,14 +231,16 @@ public class ConnectService : IHostedService, IAsyncDisposable
         {
           if (change.Key == "Value" && change.Value is byte[] data)
           {
-            DjiParseUtils.AnalyzeResponse(data);
+            //HINT: dont delete - use it to analyze notifications
+            //DjiParseUtils.AnalyzeResponse(data);
             DjiParseUtils.ParseNotificationResponse(data);
           }
         }
       });
       _logger.Debug("✅Notifications enabled!");
+      #endregion
+      
       byte[] count = new byte[] { 0x00, 0x00 };
-
       #region Init
       _logger.Debug("Sending initialization command...");
       byte[] initCommand = DjiCommandUtils.CreateInitiateCommand();
@@ -307,6 +310,7 @@ public class ConnectService : IHostedService, IAsyncDisposable
       await Task.Delay(TimeSpan.FromSeconds(1));
       */
       //TESTS
+      //byte[] stopCommand = DjiCommandUtils.CreateStopBroadcastCommand();
       byte[] stopCommand = DjiCommandUtils.CreateStopBroadcastCommand();
       DjiUtils.DebugCommand(stopCommand, "Stop Broadcast");
       await writeCharacteristic.WriteValueAsync(stopCommand, new Dictionary<string, object>());

@@ -122,7 +122,7 @@ public static class DjiCommandUtils
     }
 
     // Stop broadcast command
-    
+
 
     // Authentication command
     public static byte[] CreateAuthCommand(string pin, byte[] count)
@@ -146,7 +146,7 @@ public static class DjiCommandUtils
     }
 
     // Stop streaming command
-    
+
     public static byte[] CreateStopStreamingCommand(byte[] count)
     {
         return DjiPacketStructureUtils.BuildDjiFrame(
@@ -198,20 +198,47 @@ public static class DjiCommandUtils
     public static byte[] CreateStopBroadcastCommand(int commandValue = 0x08)
     {
         // Start with the EXACT same structure as your working start command
+        byte[] stop = new byte[] {
+            0x55, 0x13, 0x04, 0x03, 0x02, 0x08, 0x6a, 0xc0, 0x40, 0x02, 0x8e, 0x01, 0x01, 0x1a, 0x00, 0x01, 0x01
+        };
+
+        // Change the command byte to the specified value
+        stop[2] = (byte)commandValue;
+
+        // Also change the last parameter byte
+        stop[16] = 0x00; // Change from 0x01 to 0x00 for stop
+
+        // Recalculate size (should stay the same: 17 bytes + 2 CRC16 = 19 = 0x13)
+        stop[1] = (byte)(stop.Length + 2);
+
+        // Recalculate CRC8 for first 3 bytes
+        byte[] firstThreeBytes = new byte[] { stop[0], stop[1], stop[2] };
+        stop[3] = DjiCrcUtils.Crc8(firstThreeBytes);
+
+        // Append CRC16 (recalculated because data changed)
+        byte[] crc16 = DjiCrcUtils.Crc16(stop);
+        List<byte> complete = new List<byte>();
+        complete.AddRange(stop);
+        complete.AddRange(crc16);
+
+        return complete.ToArray();
+    }
+    
+    public static byte[] CreateStopBroadcastCommand()
+    {
+        // Start with the EXACT same structure as your working start command
         byte[] stop = new byte[] { 
             0x55, 0x13, 0x04, 0x03, 0x02, 0x08, 0x6a, 0xc0, 0x40, 0x02, 0x8e, 0x01, 0x01, 0x1a, 0x00, 0x01, 0x01 
         };
         
-        // Change the command byte to the specified value
-        stop[2] = (byte)commandValue;
-        
-        // Also change the last parameter byte
-        stop[16] = 0x00; // Change from 0x01 to 0x00 for stop
+        // Change the last parameter byte from 0x01 (start) to 0x02 (stop)
+        // This is the crucial difference based on the Swift code
+        stop[16] = 0x02; // Change from 0x01 to 0x02 for STOP
         
         // Recalculate size (should stay the same: 17 bytes + 2 CRC16 = 19 = 0x13)
-        stop[1] = (byte)(stop.Length + 2);
+        stop[1] = (byte)(stop.Length + 2); // Still 0x13
         
-        // Recalculate CRC8 for first 3 bytes
+        // Recalculate CRC8 for first 3 bytes (0x55, 0x13, 0x04)
         byte[] firstThreeBytes = new byte[] { stop[0], stop[1], stop[2] };
         stop[3] = DjiCrcUtils.Crc8(firstThreeBytes);
         
@@ -241,5 +268,5 @@ public static class DjiCommandUtils
         }
     }
     */
-    
+
 }
