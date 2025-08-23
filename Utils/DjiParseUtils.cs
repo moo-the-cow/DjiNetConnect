@@ -41,11 +41,25 @@ public static class DjiParseUtils
     public static CancellationTokenSource rtmpCancellationTokenSource = new();
     public static CancellationTokenSource streamStartCancellationTokenSource = new();
 
+    // Battery percentage storage
+    private static int _batteryPercentage = -1; // -1 indicates unknown
+    public static int BatteryPercentage => _batteryPercentage;
+    // Constants based on the DjiMessage structure
+    private const int TYPE_OFFSET = 8; // Type starts at offset 8 (after 0x55, length, version, header CRC, target, id)
+    private const int BATTERY_OFFSET = 31; // Type (3 bytes) + 20 bytes = 23 bytes from type start, but we need absolute offset
+
     public static void ParseNotificationResponse(byte[] data)
     {
         if (data == null || data.Length == 0)
+        {
             return;
-
+        }
+        // First, check if this is a battery status message (type 0x020d00)
+        if (IsBatteryStatusMessage(data) && BatteryPercentage == -1)
+        {
+            ExtractBatteryPercentage(data);
+            // Don't return here as we might want to process other message types too
+        }
         // Convert to hex for pattern matching
         string dataHex = BitConverter.ToString(data);
 
@@ -89,6 +103,43 @@ public static class DjiParseUtils
         ParseLegacyResponse(data);
     }
 
+    private static bool IsBatteryStatusMessage(byte[] data)
+    {
+        // Check if we have enough data for a complete message with type field
+        if (data.Length < TYPE_OFFSET + 3)
+            return false;
+
+        // Check if the message type is 0x020d00 (little-endian)
+        // In little-endian, 0x020d00 is stored as 0x00, 0x0D, 0x02
+        return data[TYPE_OFFSET] == 0x00 && 
+               data[TYPE_OFFSET + 1] == 0x0D && 
+               data[TYPE_OFFSET + 2] == 0x02;
+    }
+
+    private static void ExtractBatteryPercentage(byte[] data)
+    {
+        try
+        {
+            // Battery percentage is at offset 31 (TYPE_OFFSET + 3 + 20)
+            if (data.Length >= BATTERY_OFFSET + 1)
+            {
+                _batteryPercentage = data[BATTERY_OFFSET];
+                _logger.Debug($"🔋 Battery Percentage: {_batteryPercentage}%");
+                
+                // You might want to raise an event here so other parts of your application
+                // can be notified when the battery percentage changes
+            }
+            else
+            {
+                _logger.Warning("Battery message too short to extract percentage");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Error extracting battery percentage: {ex.Message}");
+        }
+    }
+
     private static bool IsMatchingPattern(byte[] response, byte[] pattern)
     {
         if (response.Length < pattern.Length)
@@ -115,8 +166,8 @@ public static class DjiParseUtils
         byte status = data[3];
 
         // Only log non-spam messages
-        byte[] spamStatuses = { 0x2E, 0xFC, 0x92, 0xA8, 0x63, 0x33 };
-        if (!spamStatuses.Contains(status))
+        byte[] spamStatuses = [0x2E, 0xFC, 0x92, 0xA8, 0x63, 0x33];
+        if (!spamStatuses.Contains(status) && !command.Equals(0x04))
         {
             _logger.Debug($"📨 Response - Cmd: 0x{command:X2}, Status: 0x{status:X2}, Len: {length}");
         }

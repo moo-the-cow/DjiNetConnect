@@ -164,8 +164,8 @@ public class ConnectService : IHostedService, IAsyncDisposable
       };
       string pin = "1234"; // Change to your device PIN
       string rtmpUrl = "rtmp://10.0.1.20:1936/irlbox/live";
-      string wifiSsid = "section-9_5G-1";
-      string wifiPassword = "r11m!!oL0stiegl0";
+      string wifiSsid = "section-9"; //"section-9_5G-1";
+      string wifiPassword = "r11moL0stiegl0"; // "r11m!!oL0stiegl0";
       IGattCharacteristic1? writeCharacteristic = null;
       IGattCharacteristic1? notifyCharacteristic = null;
       //string djiNonGenericServiceUUID = "0000fff0-0000-1000-8000-00805f9b34fb";
@@ -284,7 +284,7 @@ public class ConnectService : IHostedService, IAsyncDisposable
       #endregion
 
       #region RTMP Config
-        byte[] rtmpCommand = DjiCommandUtils.CreateRtmpConfigCommand(
+      byte[] rtmpCommand = DjiCommandUtils.CreateRtmpConfigCommand(
         url: rtmpUrl,
         count: count,
         bitrateKbps: 4000,    // 4 Mbps
@@ -306,11 +306,13 @@ public class ConnectService : IHostedService, IAsyncDisposable
       }
       #endregion
 
-      #region Start stream
-      byte[] startCommand = DjiCommandUtils.CreateStartBroadcastCommand();
+        #region Start stream
+        byte[] startCommand = DjiCommandUtils.CreateStartBroadcastCommand();
       //HINT: uncomment if needed
       //DjiUtils.DebugCommand(startCommand, "Start Broadcast");
       await writeCharacteristic.WriteValueAsync(startCommand, writeOptions);
+      //HINT no need to wait - but leave it here in case we need it one day
+      /*
       _logger.Debug("..broadcast done - waiting a bit");
       try
       {
@@ -320,10 +322,11 @@ public class ConnectService : IHostedService, IAsyncDisposable
       {
         await Task.Delay(TimeSpan.FromSeconds(10));
       }
+      */
       #endregion
 
       // Keep connection open
-        _logger.Debug("Press any key to stop broadcasting and disconnect...");
+      _logger.Debug("Press any key to stop broadcasting and disconnect...");
       Console.ReadKey();
       #region Stop stream
       _logger.Debug("Stopping broadcast...");
