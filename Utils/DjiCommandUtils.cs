@@ -195,16 +195,15 @@ public static class DjiCommandUtils
 
     //TESTING
     // Add device model parameter to stop command
-    public static byte[] CreateStopBroadcastCommand()
+    public static byte[] CreateStopBroadcastCommand(int commandValue = 0x08)
     {
         // Start with the EXACT same structure as your working start command
         byte[] stop = new byte[] { 
             0x55, 0x13, 0x04, 0x03, 0x02, 0x08, 0x6a, 0xc0, 0x40, 0x02, 0x8e, 0x01, 0x01, 0x1a, 0x00, 0x01, 0x01 
         };
         
-        // Change the command byte from 0x04 (start) to 0x05 (stop) or another value
-        // You need to experiment with different command values
-        stop[2] = 0x05; // Try different values here
+        // Change the command byte to the specified value
+        stop[2] = (byte)commandValue;
         
         // Also change the last parameter byte
         stop[16] = 0x00; // Change from 0x01 to 0x00 for stop
@@ -212,7 +211,7 @@ public static class DjiCommandUtils
         // Recalculate size (should stay the same: 17 bytes + 2 CRC16 = 19 = 0x13)
         stop[1] = (byte)(stop.Length + 2);
         
-        // Recalculate CRC8 for first 3 bytes (0x55, 0x13, 0x05)
+        // Recalculate CRC8 for first 3 bytes
         byte[] firstThreeBytes = new byte[] { stop[0], stop[1], stop[2] };
         stop[3] = DjiCrcUtils.Crc8(firstThreeBytes);
         
@@ -225,5 +224,22 @@ public static class DjiCommandUtils
         return complete.ToArray();
     }
 
+    // Try different command values
+    /*
+    public static async Task TryDifferentStopCommands()
+    {
+        int[] commandValuesToTry = { 0x04, 0x05, 0x06, 0x07, 0x08 };
+
+        foreach (int commandValue in commandValuesToTry)
+        {
+            _logger.Debug($"Trying stop command with value 0x{commandValue:X2}");
+
+            byte[] stopCommand = DjiCommandUtils.CreateStopBroadcastCommand(commandValue);
+            await _commandCharacteristic.WriteValueAsync(stopCommand, new Dictionary<string, object>());
+
+            await Task.Delay(1000); // Wait to see if it works
+        }
+    }
+    */
     
 }

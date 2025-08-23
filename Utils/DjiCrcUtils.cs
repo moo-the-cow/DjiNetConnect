@@ -1,9 +1,9 @@
 using Serilog;
 
-namespace djiconnect.Utils;
 public static class DjiCrcUtils
 {
     private static readonly Serilog.ILogger _logger = Log.Logger;
+    
     // CRC8 implementation that matches Node.js crc-full library
     public static byte[] Crc16(byte[] data)
     {

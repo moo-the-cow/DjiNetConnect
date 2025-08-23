@@ -4,7 +4,7 @@ namespace djiconnect.Utils;
 public static class DjiPacketStructureUtils
 {
     private static readonly Serilog.ILogger _logger = Log.Logger;
-    //private static byte[] _currentSequence = new byte[] { 0x00, 0x00 };
+    
     public static byte[] BuildDjiFrame(byte[] command, byte[] id, byte[] type, byte[] data)
     {
         if (command.Length != 2) throw new ArgumentException("Command must be 2 bytes");
@@ -31,10 +31,10 @@ public static class DjiPacketStructureUtils
 
         // Calculate and set CRC8 (first 3 bytes)
         byte[] firstThreeBytes = new byte[] { payload[0], payload[1], payload[2] };
-        payload[3] = DjiCrcUtils.Crc8(firstThreeBytes); // Now uses reflection
+        payload[3] = DjiCrcUtils.Crc8(firstThreeBytes);
 
-        // Calculate and append CRC16 with reflection
-        byte[] crc16 = DjiCrcUtils.Crc16(payload.ToArray()); // Now uses reflection
+        // Calculate and append CRC16
+        byte[] crc16 = DjiCrcUtils.Crc16(payload.ToArray());
         payload.AddRange(crc16);
 
         return payload.ToArray();

@@ -1,11 +1,8 @@
-using System.Runtime.InteropServices;
-using System.Text;
 using djiconnect.Utils;
 using Linux.Bluetooth;
 using Linux.Bluetooth.Extensions;
 using Microsoft.Extensions.Hosting;
 using Serilog;
-using Tmds.DBus;
 
 namespace djiconnect.Services;
 public class ConnectService : IHostedService, IAsyncDisposable
@@ -229,44 +226,47 @@ public class ConnectService : IHostedService, IAsyncDisposable
       await notifyCharacteristic.StartNotifyAsync();
       await notifyCharacteristic.WatchPropertiesAsync((changes) =>
       {
-        foreach (var change in changes.Changed)
+        foreach (var change in changes.Changed.Where(x => x.Key.Equals("Value") && x.Value is byte[] data))
         {
           if (change.Key == "Value" && change.Value is byte[] data)
           {
-            //_logger.Debug($"🎯 NOTIFICATION RESPONSE: {BitConverter.ToString(data)}");
-            DjiNotification notificationResult = DjiNotificationParserUtils.ParseNotify(data);
-            //HINT: too spammy need to filter
-            //Console.WriteLine($"🎯Response: {notificationResult.ToString()}");
+            DjiParseUtils.AnalyzeResponse(data);
+            DjiParseUtils.ParseNotificationResponse(data);
           }
         }
       });
       _logger.Debug("✅Notifications enabled!");
       byte[] count = new byte[] { 0x00, 0x00 };
 
+      #region Init
       _logger.Debug("Sending initialization command...");
       byte[] initCommand = DjiCommandUtils.CreateInitiateCommand();
       DjiUtils.DebugCommand(initCommand, "Send Init");
       await writeCharacteristic.WriteValueAsync(initCommand, writeOptions);
-      await Task.Delay(TimeSpan.FromSeconds(5));
-      //byte[] notificationMessageRaw = await notifyCharacteristic.ReadValueAsync(notifyOptions);
-      //DjiNotification notificationResult = DjiNotificationParserUtils.ParseNotify(notificationMessageRaw);
-      //Console.WriteLine(notificationResult.ToString());
+      DjiUtils.DebugCommand(initCommand, "..init done - waiting a bit");
+      await Task.Delay(TimeSpan.FromSeconds(1));
+      #endregion
 
+      #region Auth
       _logger.Debug("Sending authentication...");
       byte[] authCommand = DjiCommandUtils.CreateAuthCommand(pin, count);
       DjiUtils.DebugCommand(authCommand, "Send authentication");
       await writeCharacteristic.WriteValueAsync(authCommand, writeOptions);
+      DjiUtils.DebugCommand(initCommand, "..auth done - waiting a bit");
       count = DjiUtils.GetNextCount(count); // Increment count after auth
-      await Task.Delay(TimeSpan.FromSeconds(5));
+      await Task.Delay(TimeSpan.FromSeconds(3));
+      #endregion
 
-      //DjiPacketStructure.ResetSequence();
-
+      #region Wifi
       _logger.Debug("Configuring WiFi...");
       byte[] wifiCommand = DjiCommandUtils.CreateWifiConfigCommand(wifiSsid, wifiPassword);
       DjiUtils.DebugCommand(wifiCommand, "Send Wifi Config");
       await writeCharacteristic.WriteValueAsync(wifiCommand, writeOptions);
+      DjiUtils.DebugCommand(initCommand, "..wifi done - waiting a bit");
       await Task.Delay(TimeSpan.FromSeconds(5));
+      #endregion
 
+      #region RTMP Config
       _logger.Debug("Setting RTMP configuration...");
       byte[] rtmpCommand = DjiCommandUtils.CreateRtmpConfigCommand(
         url: rtmpUrl,
@@ -278,22 +278,24 @@ public class ConnectService : IHostedService, IAsyncDisposable
         eisCode: 0x01         // EIS enabled
       );
       await writeCharacteristic.WriteValueAsync(rtmpCommand, writeOptions);
+      DjiUtils.DebugCommand(initCommand, "..RTMP config done - waiting a bit");
       count = DjiUtils.GetNextCount(count); // Increment count after auth
       await Task.Delay(TimeSpan.FromSeconds(5));
+      #endregion
 
-      //DjiPacketStructure.ResetSequence();
-
+      #region Start stream
       _logger.Debug("Starting broadcast...");
       byte[] startCommand = DjiCommandUtils.CreateStartBroadcastCommand();
       DjiUtils.DebugCommand(startCommand, "Start Broadcast");
       await writeCharacteristic.WriteValueAsync(startCommand, writeOptions);
-
-      _logger.Debug("Broadcast started successfully!");
+      DjiUtils.DebugCommand(initCommand, "..broadcast done - waiting a bit");
+      await Task.Delay(TimeSpan.FromSeconds(1));
+      #endregion
 
       // Keep connection open
       _logger.Debug("Press any key to stop broadcasting and disconnect...");
       Console.ReadKey();
-
+      #region Stop stream
       _logger.Debug("Stopping broadcast...");
       //count = DjiUtils.GetNextCount(count); // Increment count after auth
       //byte[] stopCommand = DjiCommandUtils.CreateStopStreamingCommand3(count);
@@ -310,7 +312,7 @@ public class ConnectService : IHostedService, IAsyncDisposable
       await writeCharacteristic.WriteValueAsync(stopCommand, new Dictionary<string, object>());
       //byte[] moblinStopCommand = DjiCommandUtils.CreateMoblinStyleStopCommand();
       //await writeCharacteristic.WriteValueAsync(moblinStopCommand, new Dictionary<string, object>());
-      
+
       // Create stop command
       /*
       var stopCommand = new byte[] { 0x55, 0xAA, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x53 };
@@ -323,12 +325,13 @@ public class ConnectService : IHostedService, IAsyncDisposable
       };
       await writeCharacteristic.WriteValueAsync(stopCommand, writeOptions);
       */
+      #endregion
     }
   }
 
   public async Task StopAsync(CancellationToken cancellationToken)
   {
-    _logger.Warning("Stopping Chathub Client setting IsChatHubClientStarted to false");
+    _logger.Warning("Stopping Dji Application");
     await Task.CompletedTask;
   }
 
@@ -341,7 +344,7 @@ public class ConnectService : IHostedService, IAsyncDisposable
     }
     await Task.CompletedTask;
   }
-  private void OnApplicationStopping()
+  public void OnApplicationStopping()
   {
     _isShuttingDown = true;
   }
