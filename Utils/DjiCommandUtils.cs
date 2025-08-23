@@ -2,6 +2,7 @@ using System.Text;
 using Serilog;
 
 namespace djiconnect.Utils;
+
 public static class DjiCommandUtils
 {
     private static readonly Serilog.ILogger _logger = Log.Logger;
@@ -121,32 +122,7 @@ public static class DjiCommandUtils
     }
 
     // Stop broadcast command
-    public static byte[] CreateStopBroadcastCommand()
-    {
-        // Create the base packet (8 bytes)
-        byte[] packet = new byte[8];
-        packet[0] = 0x55; // Magic
-        packet[1] = 0x0A; // Length: 8 bytes + 2 CRC16 = 10 total (0x0A)
-        packet[2] = 0x04; // Command: Stop (0x04)
-        packet[4] = 0x00; // Parameter 1
-        packet[5] = 0x00; // Parameter 2  
-        packet[6] = 0x00; // Parameter 3
-        packet[7] = 0x00; // Parameter 4
-
-        // Calculate CRC8 for first 3 bytes
-        byte[] header = new byte[] { packet[0], packet[1], packet[2] };
-        packet[3] = DjiCrcUtils.Crc8(header);
-
-        // Calculate CRC16 for entire 8-byte packet
-        byte[] crc16 = DjiCrcUtils.Crc16(packet);
-
-        // Combine packet + CRC16
-        byte[] result = new byte[packet.Length + 2];
-        Array.Copy(packet, result, packet.Length);
-        Array.Copy(crc16, 0, result, packet.Length, 2);
-
-        return result;
-    }
+    
 
     // Authentication command
     public static byte[] CreateAuthCommand(string pin, byte[] count)
@@ -170,41 +146,7 @@ public static class DjiCommandUtils
     }
 
     // Stop streaming command
-    public static byte[] CreateStopBroadcastCommandNew(byte[] currentSequenceId)
-    {
-
-        // Build the core packet - same as start but last data byte is 0x00
-        byte[] stopData = new byte[] { 0x01, 0x01, 0x1a, 0x00, 0x01, 0x00 }; // Last byte 0x00 for STOP
-
-        List<byte> packet = new List<byte>();
-        packet.Add(0x55);
-        packet.Add(0x00); // Length placeholder
-        packet.Add(0x04);
-        packet.Add(0x00); // CRC8 placeholder
-        packet.AddRange(new byte[] { 0x02, 0x08 }); // Command
-        packet.AddRange(currentSequenceId); // Sequence ID
-        packet.AddRange(new byte[] { 0x40, 0x02, 0x8e }); // Your specific type
-        packet.AddRange(stopData); // Stop data payload
-
-        // Calculate and set length
-        int lengthValue = (packet.Count - 2) + 2; // -2 (0x55+placeholder), +2 for CRC16
-        packet[1] = (byte)lengthValue;
-
-        // Calculate and set CRC8
-        byte[] headerForCrc8 = { packet[0], packet[1], packet[2] };
-        packet[3] = DjiCrcUtils.Crc8(headerForCrc8);
-
-        // Calculate CRC16
-        byte[] packetWithoutCrc16 = packet.ToArray();
-        byte[] crc16 = DjiCrcUtils.Crc16(packetWithoutCrc16);
-
-        // Final packet
-        List<byte> completePacket = new List<byte>();
-        completePacket.AddRange(packetWithoutCrc16);
-        completePacket.AddRange(crc16);
-
-        return completePacket.ToArray();
-    }
+    
     public static byte[] CreateStopStreamingCommand(byte[] count)
     {
         return DjiPacketStructureUtils.BuildDjiFrame(
@@ -250,4 +192,38 @@ public static class DjiCommandUtils
 
         return complete.ToArray();
     }
+
+    //TESTING
+    // Add device model parameter to stop command
+    public static byte[] CreateStopBroadcastCommand()
+    {
+        // Start with the EXACT same structure as your working start command
+        byte[] stop = new byte[] { 
+            0x55, 0x13, 0x04, 0x03, 0x02, 0x08, 0x6a, 0xc0, 0x40, 0x02, 0x8e, 0x01, 0x01, 0x1a, 0x00, 0x01, 0x01 
+        };
+        
+        // Change the command byte from 0x04 (start) to 0x05 (stop) or another value
+        // You need to experiment with different command values
+        stop[2] = 0x05; // Try different values here
+        
+        // Also change the last parameter byte
+        stop[16] = 0x00; // Change from 0x01 to 0x00 for stop
+        
+        // Recalculate size (should stay the same: 17 bytes + 2 CRC16 = 19 = 0x13)
+        stop[1] = (byte)(stop.Length + 2);
+        
+        // Recalculate CRC8 for first 3 bytes (0x55, 0x13, 0x05)
+        byte[] firstThreeBytes = new byte[] { stop[0], stop[1], stop[2] };
+        stop[3] = DjiCrcUtils.Crc8(firstThreeBytes);
+        
+        // Append CRC16 (recalculated because data changed)
+        byte[] crc16 = DjiCrcUtils.Crc16(stop);
+        List<byte> complete = new List<byte>();
+        complete.AddRange(stop);
+        complete.AddRange(crc16);
+        
+        return complete.ToArray();
+    }
+
+    
 }

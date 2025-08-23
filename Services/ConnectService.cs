@@ -229,16 +229,16 @@ public class ConnectService : IHostedService, IAsyncDisposable
       await notifyCharacteristic.StartNotifyAsync();
       await notifyCharacteristic.WatchPropertiesAsync((changes) =>
       {
-          foreach (var change in changes.Changed)
+        foreach (var change in changes.Changed)
+        {
+          if (change.Key == "Value" && change.Value is byte[] data)
           {
-              if (change.Key == "Value" && change.Value is byte[] data)
-              {
-                  //_logger.Debug($"🎯 NOTIFICATION RESPONSE: {BitConverter.ToString(data)}");
-                  DjiNotification notificationResult = DjiNotificationParserUtils.ParseNotify(data);
-                  //HINT: too spammy need to filter
-                  //Console.WriteLine($"🎯Response: {notificationResult.ToString()}");
-              }
+            //_logger.Debug($"🎯 NOTIFICATION RESPONSE: {BitConverter.ToString(data)}");
+            DjiNotification notificationResult = DjiNotificationParserUtils.ParseNotify(data);
+            //HINT: too spammy need to filter
+            //Console.WriteLine($"🎯Response: {notificationResult.ToString()}");
           }
+        }
       });
       _logger.Debug("✅Notifications enabled!");
       byte[] count = new byte[] { 0x00, 0x00 };
@@ -247,7 +247,7 @@ public class ConnectService : IHostedService, IAsyncDisposable
       byte[] initCommand = DjiCommandUtils.CreateInitiateCommand();
       DjiUtils.DebugCommand(initCommand, "Send Init");
       await writeCharacteristic.WriteValueAsync(initCommand, writeOptions);
-      await Task.Delay(TimeSpan.FromSeconds(1));
+      await Task.Delay(TimeSpan.FromSeconds(5));
       //byte[] notificationMessageRaw = await notifyCharacteristic.ReadValueAsync(notifyOptions);
       //DjiNotification notificationResult = DjiNotificationParserUtils.ParseNotify(notificationMessageRaw);
       //Console.WriteLine(notificationResult.ToString());
@@ -257,7 +257,7 @@ public class ConnectService : IHostedService, IAsyncDisposable
       DjiUtils.DebugCommand(authCommand, "Send authentication");
       await writeCharacteristic.WriteValueAsync(authCommand, writeOptions);
       count = DjiUtils.GetNextCount(count); // Increment count after auth
-      await Task.Delay(TimeSpan.FromSeconds(3));
+      await Task.Delay(TimeSpan.FromSeconds(5));
 
       //DjiPacketStructure.ResetSequence();
 
@@ -298,10 +298,18 @@ public class ConnectService : IHostedService, IAsyncDisposable
       //count = DjiUtils.GetNextCount(count); // Increment count after auth
       //byte[] stopCommand = DjiCommandUtils.CreateStopStreamingCommand3(count);
       //byte[] stopCommand = DjiCommandUtils.CreateStopBroadcastCommandNew(count);
+      /*
       byte[] stopCommand = DjiCommandUtils.CreateStopBroadcastCommand();
       DjiUtils.DebugCommand(stopCommand, "Stop Broadcast");
       await writeCharacteristic.WriteValueAsync(stopCommand, writeOptions);
       await Task.Delay(TimeSpan.FromSeconds(1));
+      */
+      //TESTS
+      byte[] stopCommand = DjiCommandUtils.CreateStopBroadcastCommand();
+      DjiUtils.DebugCommand(stopCommand, "Stop Broadcast");
+      await writeCharacteristic.WriteValueAsync(stopCommand, new Dictionary<string, object>());
+      //byte[] moblinStopCommand = DjiCommandUtils.CreateMoblinStyleStopCommand();
+      //await writeCharacteristic.WriteValueAsync(moblinStopCommand, new Dictionary<string, object>());
       
       // Create stop command
       /*

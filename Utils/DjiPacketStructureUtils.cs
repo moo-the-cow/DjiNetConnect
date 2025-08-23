@@ -39,25 +39,4 @@ public static class DjiPacketStructureUtils
 
         return payload.ToArray();
     }
-    /*
-    public static byte[] GetNextSequenceId()
-    {
-        if (_currentSequence[0] == 0xFF)
-        {
-            _currentSequence[0] = 0x00;
-            _currentSequence[1]++;
-        }
-        else
-        {
-            _currentSequence[0]++;
-        }
-
-        return _currentSequence;
-    }
-    
-    public static void ResetSequence()
-    {
-        _currentSequence = new byte[] { 0x00, 0x00 };
-    }
-    */
 }
