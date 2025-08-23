@@ -4,7 +4,7 @@ using Serilog;
 namespace djiconnect.Utils;
 public static class DeviceUtils
 {
-    private static readonly Serilog.ILogger _logger = Log.Logger;
+    private static readonly ILogger _logger = Log.Logger;
     public static async Task<string> GetDeviceDescriptionAsync(IDevice1 device)
     {
         var deviceProperties = await device.GetAllAsync();

@@ -241,37 +241,50 @@ public class ConnectService : IHostedService, IAsyncDisposable
       #endregion
       
       byte[] count = new byte[] { 0x00, 0x00 };
+      //TODO instead of Task Delay lets now use our status codes and access the properties in DjiParseUtils
       #region Init
-      _logger.Debug("Sending initialization command...");
       byte[] initCommand = DjiCommandUtils.CreateInitiateCommand();
-      DjiUtils.DebugCommand(initCommand, "Send Init");
+      //HINT: uncomment if needed
+      //DjiUtils.DebugCommand(initCommand, "Send Init");
       await writeCharacteristic.WriteValueAsync(initCommand, writeOptions);
-      DjiUtils.DebugCommand(initCommand, "..init done - waiting a bit");
-      await Task.Delay(TimeSpan.FromSeconds(1));
       #endregion
 
       #region Auth
-      _logger.Debug("Sending authentication...");
       byte[] authCommand = DjiCommandUtils.CreateAuthCommand(pin, count);
-      DjiUtils.DebugCommand(authCommand, "Send authentication");
+      //HINT: uncomment if needed
+      //DjiUtils.DebugCommand(authCommand, "Send authentication");
       await writeCharacteristic.WriteValueAsync(authCommand, writeOptions);
-      DjiUtils.DebugCommand(initCommand, "..auth done - waiting a bit");
+      _logger.Debug("..auth done - waiting a bit");
       count = DjiUtils.GetNextCount(count); // Increment count after auth
-      await Task.Delay(TimeSpan.FromSeconds(3));
+      try
+      {
+        await Task.Delay(TimeSpan.FromSeconds(10), DjiParseUtils.authCancellationTokenSource.Token);
+      }
+      catch (TaskCanceledException)
+      {
+        //HINT: sadly still need to sleep a bit
+        await Task.Delay(TimeSpan.FromSeconds(1));
+      }
       #endregion
 
       #region Wifi
-      _logger.Debug("Configuring WiFi...");
-      byte[] wifiCommand = DjiCommandUtils.CreateWifiConfigCommand(wifiSsid, wifiPassword);
-      DjiUtils.DebugCommand(wifiCommand, "Send Wifi Config");
+        byte[] wifiCommand = DjiCommandUtils.CreateWifiConfigCommand(wifiSsid, wifiPassword);
+      //HINT: uncomment if needed
+      //DjiUtils.DebugCommand(wifiCommand, "Send Wifi Config");
       await writeCharacteristic.WriteValueAsync(wifiCommand, writeOptions);
-      DjiUtils.DebugCommand(initCommand, "..wifi done - waiting a bit");
-      await Task.Delay(TimeSpan.FromSeconds(5));
+      _logger.Debug("..wifi done - waiting a bit");
+      try
+      {
+        await Task.Delay(TimeSpan.FromSeconds(10), DjiParseUtils.wifiCancellationTokenSource.Token);
+      }
+      catch (TaskCanceledException)
+      {
+        await Task.Delay(TimeSpan.FromSeconds(1));
+      }
       #endregion
 
       #region RTMP Config
-      _logger.Debug("Setting RTMP configuration...");
-      byte[] rtmpCommand = DjiCommandUtils.CreateRtmpConfigCommand(
+        byte[] rtmpCommand = DjiCommandUtils.CreateRtmpConfigCommand(
         url: rtmpUrl,
         count: count,
         bitrateKbps: 4000,    // 4 Mbps
@@ -281,54 +294,43 @@ public class ConnectService : IHostedService, IAsyncDisposable
         eisCode: 0x01         // EIS enabled
       );
       await writeCharacteristic.WriteValueAsync(rtmpCommand, writeOptions);
-      DjiUtils.DebugCommand(initCommand, "..RTMP config done - waiting a bit");
+      _logger.Debug("..RTMP config done - waiting a bit");
       count = DjiUtils.GetNextCount(count); // Increment count after auth
-      await Task.Delay(TimeSpan.FromSeconds(5));
+      try
+      {
+        await Task.Delay(TimeSpan.FromSeconds(10), DjiParseUtils.rtmpCancellationTokenSource.Token);
+      }
+      catch (TaskCanceledException)
+      {
+        await Task.Delay(TimeSpan.FromSeconds(1));
+      }
       #endregion
 
       #region Start stream
-      _logger.Debug("Starting broadcast...");
       byte[] startCommand = DjiCommandUtils.CreateStartBroadcastCommand();
-      DjiUtils.DebugCommand(startCommand, "Start Broadcast");
+      //HINT: uncomment if needed
+      //DjiUtils.DebugCommand(startCommand, "Start Broadcast");
       await writeCharacteristic.WriteValueAsync(startCommand, writeOptions);
-      DjiUtils.DebugCommand(initCommand, "..broadcast done - waiting a bit");
-      await Task.Delay(TimeSpan.FromSeconds(1));
+      _logger.Debug("..broadcast done - waiting a bit");
+      try
+      {
+        await Task.Delay(TimeSpan.FromMinutes(1), DjiParseUtils.streamStartCancellationTokenSource.Token);
+      }
+      catch (TaskCanceledException)
+      {
+        await Task.Delay(TimeSpan.FromSeconds(10));
+      }
       #endregion
 
       // Keep connection open
-      _logger.Debug("Press any key to stop broadcasting and disconnect...");
+        _logger.Debug("Press any key to stop broadcasting and disconnect...");
       Console.ReadKey();
       #region Stop stream
       _logger.Debug("Stopping broadcast...");
-      //count = DjiUtils.GetNextCount(count); // Increment count after auth
-      //byte[] stopCommand = DjiCommandUtils.CreateStopStreamingCommand3(count);
-      //byte[] stopCommand = DjiCommandUtils.CreateStopBroadcastCommandNew(count);
-      /*
       byte[] stopCommand = DjiCommandUtils.CreateStopBroadcastCommand();
-      DjiUtils.DebugCommand(stopCommand, "Stop Broadcast");
-      await writeCharacteristic.WriteValueAsync(stopCommand, writeOptions);
-      await Task.Delay(TimeSpan.FromSeconds(1));
-      */
-      //TESTS
-      //byte[] stopCommand = DjiCommandUtils.CreateStopBroadcastCommand();
-      byte[] stopCommand = DjiCommandUtils.CreateStopBroadcastCommand();
-      DjiUtils.DebugCommand(stopCommand, "Stop Broadcast");
+      //HINT: uncomment if needed
+      //DjiUtils.DebugCommand(stopCommand, "Stop Broadcast");
       await writeCharacteristic.WriteValueAsync(stopCommand, new Dictionary<string, object>());
-      //byte[] moblinStopCommand = DjiCommandUtils.CreateMoblinStyleStopCommand();
-      //await writeCharacteristic.WriteValueAsync(moblinStopCommand, new Dictionary<string, object>());
-
-      // Create stop command
-      /*
-      var stopCommand = new byte[] { 0x55, 0xAA, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x53 };
-
-      // Write to characteristic
-      
-      writeOptions = new Dictionary<string, object>
-      {
-        { "stopStreamingType", 0x8E0240 }  //stop stream type
-      };
-      await writeCharacteristic.WriteValueAsync(stopCommand, writeOptions);
-      */
       #endregion
     }
   }

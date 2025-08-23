@@ -6,26 +6,26 @@ public static class DjiParseUtils
 {
     private static readonly Serilog.ILogger _logger = Log.Logger;
     // Known success response patterns
-    public static readonly byte[] AuthSuccessResponse =
+    private static readonly byte[] AuthSuccessResponse =
     [
         0x55, 0x0F, 0x04, 0xA2, 0x07, 0x02, 0x00, 0x00,
         0xC0, 0x07, 0x45, 0x00, 0x01, 0xA0, 0xD4
     ];
 
-    public static readonly byte[] WifiSuccessResponse =
+    private static readonly byte[] WifiSuccessResponse =
     [
         0x55, 0x16, 0x04, 0xFC, 0x08, 0x02, 0x00, 0x00, 
         0x80, 0xEE, 0x03, 0x03, 0x09, 0x00, 0x00, 0x00, 
         0x00, 0x00, 0x00, 0x20, 0xDA, 0xAC
     ];
 
-    public static readonly byte[] RtmpConfigSuccessResponse =
+    private static readonly byte[] RtmpConfigSuccessResponse =
     [
         0x55, 0x0E, 0x04, 0x66, 0x01, 0x02, 0x01, 0x00, 
         0xC0, 0x02, 0x8E, 0x00, 0x16, 0x7B
     ];
 
-    public static readonly byte[] StreamStartSuccessResponse = new byte[]
+    private static readonly byte[] StreamStartSuccessResponse = new byte[]
     {
         0x55, 0x0E, 0x04, 0x66, 0x08, 0x02, 0x6A, 0xC0, 
         0xC0, 0x02, 0x8E, 0x00, 0xF6, 0x36
@@ -35,6 +35,11 @@ public static class DjiParseUtils
     private static bool _wifiConfigured = false;
     private static bool _rtmpConfigured = false;
     private static bool _streamStartSuccessful = false;
+
+    public static CancellationTokenSource authCancellationTokenSource = new();
+    public static CancellationTokenSource wifiCancellationTokenSource = new();
+    public static CancellationTokenSource rtmpCancellationTokenSource = new();
+    public static CancellationTokenSource streamStartCancellationTokenSource = new();
 
     public static void ParseNotificationResponse(byte[] data)
     {
@@ -49,14 +54,16 @@ public static class DjiParseUtils
         {
             _authSuccessful = true;
             _logger.Debug("✅ AUTHENTICATION SUCCESSFUL! Device is now paired.");
+            authCancellationTokenSource.Cancel();
             return;
         }
 
-        // Check for auth success
+        // Check for wifi success
         if (_authSuccessful && !_wifiConfigured && IsMatchingPattern(data, WifiSuccessResponse))
         {
             _wifiConfigured = true;
             _logger.Debug("✅ WiFi CONFIGURATION SUCCESSFUL!");
+            wifiCancellationTokenSource.Cancel();
             return;
         }
 
@@ -65,6 +72,7 @@ public static class DjiParseUtils
         {
             _rtmpConfigured = true;
             _logger.Debug("✅ RTMP CONFIGURATION SUCCESSFUL!");
+            rtmpCancellationTokenSource.Cancel();
             return;
         }
 
@@ -73,6 +81,7 @@ public static class DjiParseUtils
         {
             _streamStartSuccessful = true;
             _logger.Debug("✅ STREAM START SUCCESSFUL!");
+            streamStartCancellationTokenSource.Cancel();
             return;
         }
 
